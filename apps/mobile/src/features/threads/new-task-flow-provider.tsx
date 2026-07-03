@@ -612,7 +612,10 @@ export function NewTaskFlowProvider(props: React.PropsWithChildren) {
         creation: {
           projectId: selectedProject.id,
           projectTitle: selectedProject.title,
-          projectCwd: selectedProject.workspaceRoot,
+          projectCwd:
+            selectedProject.workspaceRoot !== String(selectedProject.id)
+              ? selectedProject.workspaceRoot
+              : undefined,
           workspaceMode: mode,
           branch: workspaceSelection?.branch ?? null,
           worktreePath: mode === "worktree" ? null : (workspaceSelection?.worktreePath ?? null),
@@ -679,13 +682,15 @@ export function NewTaskFlowProvider(props: React.PropsWithChildren) {
         // save keeps it around so the edits rehydrate on the next open).
         void updateThreadOutboxMessage(message)
           .then(() => {
-            clearComposerDraft(pendingTaskDraftKey(editing.messageId));
+            if (editingPendingTaskRef.current === null) {
+              setEditingQueuedMessageId(null);
+            }
+            if (editingPendingTaskRef.current?.messageId !== editing.messageId) {
+              clearComposerDraft(pendingTaskDraftKey(editing.messageId));
+            }
           })
           .catch((error) => {
             console.warn("[new-task] failed to save edited pending task", error);
-          })
-          .finally(() => {
-            setEditingQueuedMessageId(null);
           });
       } else {
         clearComposerDraft(pendingTaskDraftKey(editing.messageId));
