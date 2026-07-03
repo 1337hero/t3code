@@ -244,7 +244,7 @@ export function useThreadOutboxDrain(): void {
     async (
       queuedMessage: QueuedThreadMessage,
       creation: QueuedThreadCreation,
-      project: EnvironmentProject,
+      projectCwd: string,
     ) => {
       const modelSelection = queuedMessage.modelSelection;
       if (modelSelection === undefined) {
@@ -255,7 +255,7 @@ export function useThreadOutboxDrain(): void {
         environmentId: queuedMessage.environmentId,
         input: buildProjectThreadStartTurnInput({
           projectId: creation.projectId,
-          projectCwd: project.workspaceRoot,
+          projectCwd,
           threadId: queuedMessage.threadId,
           commandId: queuedMessage.commandId,
           messageId: queuedMessage.messageId,
@@ -341,13 +341,14 @@ export function useThreadOutboxDrain(): void {
         );
       const creationProject =
         creation !== undefined ? findCreationProject(projects, nextQueuedMessage) : undefined;
+      const creationProjectCwd = creationProject?.workspaceRoot ?? creation?.projectCwd;
       const delivery =
         deliveryAction === "remove"
           ? removeQueuedMessage("[thread-outbox] failed to remove message for a missing thread")
           : creation !== undefined
-            ? creationProject !== undefined
-              ? sendQueuedCreation(nextQueuedMessage, creation, creationProject)
-              : removeQueuedMessage("[thread-outbox] dropped pending task for a missing project")
+            ? creationProjectCwd !== undefined
+              ? sendQueuedCreation(nextQueuedMessage, creation, creationProjectCwd)
+              : Promise.resolve(false)
             : thread !== undefined
               ? sendQueuedMessage(nextQueuedMessage, thread)
               : Promise.resolve(false);

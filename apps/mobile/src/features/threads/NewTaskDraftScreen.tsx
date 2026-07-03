@@ -34,7 +34,12 @@ import {
 import { useScaledTextRole } from "../settings/appearance/useScaledTextRole";
 import { getComposerDraftSnapshot } from "../../state/use-composer-drafts";
 import { useProjects } from "../../state/entities";
-import { enqueueThreadOutboxMessage, removeThreadOutboxMessage } from "../../state/thread-outbox";
+import {
+  enqueueThreadOutboxMessage,
+  flattenQueuedThreadMessages,
+  removeThreadOutboxMessage,
+} from "../../state/thread-outbox";
+import { useThreadOutboxMessages } from "../../state/use-thread-outbox";
 import { useRemoteConnectionStatus } from "../../state/use-remote-environment-registry";
 import { branchBadgeLabel, useNewTaskFlow } from "./new-task-flow-provider";
 import { useCreateProjectThread } from "./use-project-actions";
@@ -84,6 +89,7 @@ export function NewTaskDraftScreen(props: {
   }, []);
 
   const { beginEditingPendingTask, cancelEditingPendingTask, editingPendingTask } = flow;
+  const queuedMessages = useThreadOutboxMessages();
   const attemptedPendingTaskIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!props.pendingTaskId || editingPendingTask?.messageId === props.pendingTaskId) {
@@ -94,12 +100,21 @@ export function NewTaskDraftScreen(props: {
     if (attemptedPendingTaskIdRef.current === props.pendingTaskId) {
       return;
     }
-    attemptedPendingTaskIdRef.current = props.pendingTaskId;
-    if (!beginEditingPendingTask(props.pendingTaskId)) {
-      // The queued task no longer exists (sent or deleted before opening).
-      navigation.dispatch(StackActions.replace("NewTask"));
+    if (beginEditingPendingTask(props.pendingTaskId)) {
+      attemptedPendingTaskIdRef.current = props.pendingTaskId;
+      return;
     }
-  }, [beginEditingPendingTask, editingPendingTask?.messageId, navigation, props.pendingTaskId]);
+    // The task was not found. If the outbox atom is still empty, persisted
+    // messages may not have hydrated yet — wait for the next atom update.
+    const hasOutboxContent =
+      flattenQueuedThreadMessages(queuedMessages).length > 0;
+    if (!hasOutboxContent) {
+      return;
+    }
+    // The outbox has content but this task is absent — it was sent or deleted.
+    attemptedPendingTaskIdRef.current = props.pendingTaskId;
+    navigation.dispatch(StackActions.replace("NewTask"));
+  }, [beginEditingPendingTask, editingPendingTask?.messageId, navigation, props.pendingTaskId, queuedMessages]);
 
   useEffect(() => {
     if (!props.pendingTaskId) return;
