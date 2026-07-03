@@ -41,6 +41,7 @@ import { useBranches } from "../../state/queries";
 import {
   enqueueThreadOutboxMessage,
   flattenQueuedThreadMessages,
+  isPendingDeletion,
   threadOutboxManager,
   type QueuedThreadMessage,
 } from "../../state/thread-outbox";
@@ -615,6 +616,13 @@ export function NewTaskFlowProvider(props: React.PropsWithChildren) {
       }
       editingPendingTaskRef.current = null;
       setEditingPendingTask(null);
+
+      // If a deletion is in progress, bail out and let the delete handler
+      // manage the editing lock and cleanup.
+      if (isPendingDeletion(editing.messageId)) {
+        clearComposerDraft(pendingTaskDraftKey(editing.messageId));
+        return;
+      }
 
       // If the task was deleted externally, skip re-enqueuing.
       const stillQueued = findQueuedPendingTask(editing.messageId);

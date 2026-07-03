@@ -27,3 +27,17 @@ export function removeThreadOutboxMessage(message: QueuedThreadMessage): Promise
 export function clearThreadOutboxEnvironment(environmentId: EnvironmentId): Promise<void> {
   return threadOutboxManager.clearEnvironment(environmentId);
 }
+
+const pendingDeletionMessageIds = new Set<string>();
+
+export function markPendingDeletion(messageId: string): void {
+  pendingDeletionMessageIds.add(messageId);
+}
+
+export function clearPendingDeletion(messageId: string): void {
+  pendingDeletionMessageIds.delete(messageId);
+}
+
+export function isPendingDeletion(messageId: string): boolean {
+  return pendingDeletionMessageIds.has(messageId);
+}
